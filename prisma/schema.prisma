@@ -1,0 +1,136 @@
+
+generator client {
+  provider = "prisma-client"
+  output = "../src/generated/prisma/client"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id        String   @id @default(cuid())
+  login     String   @unique
+  name      String?
+  email     String?  @unique
+  avatarUrl String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  settings  UserSettings?
+}
+
+model UserSettings {
+  id                    String   @id
+  emailOnPrOpened           Boolean  @default(true)
+  emailOnFixFailed          Boolean  @default(true)
+  watchedBranches           String[] @default([])
+  onlyWatchedBranches       Boolean  @default(false)
+  pauseOnThresholdEnabled   Boolean  @default(false)
+  pauseThresholdPercent     Float    @default(80)
+  emailOnTokenThreshold     Boolean  @default(true)
+  user                      User     @relation(fields: [id], references: [id], onDelete: Cascade)
+}
+
+model Repository{
+  id          String @id @default(cuid())
+  name        String
+  fullName    String
+  isPrivate     Boolean @default(false)
+  language    String?
+  hasWorkflows Boolean @default(false)
+  workFlowFile String?
+  lastCiStatus   String?
+  monitored      Boolean  @default(true)
+  installationId BigInt
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  runs           Run[]
+  tokenUsages    TokenUsage[]
+}
+
+model Run {
+  id                 String    @id @default(cuid())
+  repoId             String
+  branch             String
+  commitHash         String
+  commitMessage      String?
+  githubRunUrl       String
+  duration           Int?
+  status             RunStatus @default(QUEUED)
+
+  prNumber           Int?
+  prUrl              String?
+  rootCause          String?
+  failureReason      String?
+  humanRecommendation String?
+
+  failingLog          Json?
+  patch               Json?
+  sandbox             Json?
+  reasoningSteps      Json?
+
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  repository          Repository @relation(fields: [repoId], references: [id], onDelete: Cascade)
+  steps               RunStep[]
+}
+
+enum RunStatus {
+  DETECTED
+  INVESTIGATING
+  PATCHING
+  VERIFYING
+  PR_OPENED
+  MERGED
+  FAILED_TO_FIX
+  QUEUED
+}
+
+model RunStep {
+  id        String        @id @default(cuid())
+  runId     String
+  name      RunStepName
+  status    RunStepStatus @default(pending)
+  tokens    Int           @default(0)
+  duration  Int?
+  summary   String?
+  createdAt DateTime      @default(now())
+
+  run Run @relation(fields: [runId], references: [id], onDelete: Cascade)
+}
+
+enum RunStepName {
+  Detect
+  Investigate
+  Patch
+  Verify
+  Open_PR
+}
+
+enum RunStepStatus {
+  pending
+  in_progress
+  completed
+  failed
+}
+
+model TokenUsage {
+  id        String   @id @default(cuid())
+  repoId    String
+  date      DateTime @default(now())
+  stage     TokenStage
+  tokens    Int
+  inputTokens Int @default(0)
+  outputTokens Int @default(0)
+  totalTokens Int @default(0)
+  repository Repository @relation(fields: [repoId], references: [id], onDelete: Cascade)
+}
+
+enum TokenStage {
+  detect
+  patch
+  critique
+}
