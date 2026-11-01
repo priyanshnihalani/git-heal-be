@@ -1,5 +1,6 @@
 import { prisma } from '../../core/db/index.js'
 import type { GithubWorkflowRunPayload } from './types.js'
+import { investigateRun } from '../runs/runService.js'
 
 export async function handleWorkflowFailure(payload: GithubWorkflowRunPayload): Promise<void> {
     const { workflow_run: run, installation } = payload;
@@ -59,5 +60,9 @@ export async function handleWorkflowFailure(payload: GithubWorkflowRunPayload): 
     });
 
     console.log(`[Webhook] Recorded failed run ${createdRun.id} for ${repository.fullName}`);
-
+    
+    // 5. Automatically trigger investigation
+    investigateRun(createdRun.id).catch((err) => {
+        console.error("[Webhook] Critical error during automated investigation:", err);
+    });
 }
