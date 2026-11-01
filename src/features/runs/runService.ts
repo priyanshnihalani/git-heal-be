@@ -1,6 +1,7 @@
 import { prisma } from '../../core/db/index.js';
 import { getFailedJob, getJobLogs } from '../github/githubService.js';
 import { scrapeLog, extractGithubRunId } from './scraper.js';
+import { generatePatch } from '../agents/patchAgents.js';
 
 export async function investigateRun(runId: string): Promise<void> {
   const run = await prisma.run.findUnique({
@@ -102,4 +103,7 @@ export async function investigateRun(runId: string): Promise<void> {
   console.log(
     `[RunService] Completed investigation for run ${runId}. Detected: ${scraped.errorType} (${fileCount} file(s))`
   );
+
+  await generatePatch(runId);
+  console.log(`[RunService] Patch generated for run ${runId}`);
 }
